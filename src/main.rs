@@ -24,7 +24,7 @@ impl Default for WeatherData {
     }
 }
 impl WeatherData {
-    fn assign(&mut self, temperature: f64) {
+    fn update(&mut self, temperature: f64) {
         self._total += temperature;
         self._max = self._max.max(temperature);
         self._min = self._min.min(temperature);
@@ -48,23 +48,26 @@ fn main() {
 }
 
 fn weather_parser(filepath: &str) -> Result<FxHashMap<String, WeatherData>, std::io::Error> {
+    println!("[Success] Operation Started");
     let now = Instant::now();
     let file = File::open(filepath)?;
-    let mut reader = BufReader::with_capacity(8192 * 2, file);
+    let mut reader = BufReader::with_capacity(16384, file);
     let mut buffer = Vec::with_capacity(32);
     let mut measurements: FxHashMap<String, WeatherData> = FxHashMap::default();
 
     while reader.read_until(b'\n', &mut buffer)? > 0 {
         let line = String::from_utf8_lossy(&buffer);
-        let (station, value) = line.split_once(';').expect("");
-
+        let (station, value) = line
+            .split_once(';')
+            .expect("[Error] String Split Was Unsuccessful.");
+        let temperature = value[0..value.len() - 1].parse::<f64>().unwrap_or(0.0);
         let entry = measurements
             .entry(station.into())
             .or_insert(WeatherData::default());
-        let temperature: f64 = value.trim_end().parse().unwrap_or(0.0);
-        entry.assign(temperature);
+        entry.update(temperature);
+
         buffer.clear();
     }
-    println!("Operation Finished in {:.2?}", now.elapsed());
+    println!("[Success] Operation Finished In {:.2?}", now.elapsed());
     Ok(measurements)
 }
